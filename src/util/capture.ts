@@ -1,37 +1,27 @@
-import puppeteer from 'puppeteer';
+import * as puppeteer from 'puppeteer';
 import * as path from 'path';
 
 /**
  * 指定したURLのスクリーンショットを撮影し、保存する
+ * @param browser Puppeteerのブラウザインスタンス
  * @param url キャプチャするページのURL
  * @param outputPath スクリーンショットの保存先
  */
-async function takeScreenshot(url: string, outputPath: string) {
-    const browser = await puppeteer.launch({
-        headless: true, 
-        defaultViewport: null // デフォルトのビューポートを無効化
-    });
-
+async function takeScreenshot(browser: puppeteer.Browser, url: string, outputPath: string) {
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: 'networkidle2' });
 
     // ページの実際のサイズを取得
-    const dimensions = await page.evaluate(() => {
-        return {
-            width: document.body.scrollWidth,  // ページ全体の幅
-            height: document.body.scrollHeight // ページ全体の高さ
-        };
-    });
+    const dimensions = await page.evaluate(() => ({
+        width: document.body.scrollWidth,
+        height: document.body.scrollHeight
+    }));
 
     // ビューポートのサイズをページ全体に設定
-    await page.setViewport({
-        width: dimensions.width,
-        height: dimensions.height
-    });
-
+    await page.setViewport(dimensions);
     await page.screenshot({ path: outputPath, fullPage: true });
 
-    await browser.close();
+    await page.close();
 }
 
 /**
@@ -44,8 +34,19 @@ export async function captureScreenshots(demoUrl: string, prodUrl: string, outpu
     const demoScreenshotPath = path.join(outputDir, 'demo.png');
     const prodScreenshotPath = path.join(outputDir, 'prod.png');
 
-    await takeScreenshot(demoUrl, demoScreenshotPath);
-    await takeScreenshot(prodUrl, prodScreenshotPath);
+    const browser = await puppeteer.launch({
+        headless: true,
+        defaultViewport: null
+    });
+
+    try {
+        await Promise.all([
+            takeScreenshot(browser, demoUrl, demoScreenshotPath),
+            takeScreenshot(browser, prodUrl, prodScreenshotPath)
+        ]);
+    } finally {
+        await browser.close(); 
+    }
 
     return { demoScreenshot: demoScreenshotPath, prodScreenshot: prodScreenshotPath };
 }
