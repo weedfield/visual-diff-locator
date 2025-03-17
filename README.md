@@ -1,71 +1,80 @@
-# visual-diff-locator README
+# Visual Diff Locator
 
-This is the README for your extension "visual-diff-locator". After writing up a brief description, we recommend including the following sections.
+デモ環境と本番環境の Web ページのスクリーンショットを取得し、視覚的な差分を検出・表示するツールです。
 
-## Features
+## 機能概要
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
-
-## Requirements
-
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
-
-## Extension Settings
-
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
+- **スクリーンショットの取得**：デモ環境と本番環境のページをキャプチャ
+- **画像の比較**：PixelMatch を使用して視覚的な差分を検出
+- **結果の表示**：
+  - **Pixel Diff View**：差分を強調表示
+  - **Overlay View**：画像を重ねて比較可能
+    - ドラッグまたはカーソルキーでオーバーレイ画像を移動できます。
+    - opacity: 透過度の変更
+    - invert: 色調の反転
+    - lock scroll: カーソルキー使用時に画像のスクロールを抑えます。
 
 ---
 
-## Following extension guidelines
+## 📂 ディレクトリ構成
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+```plaintext
+visual-diff-locator/
+│── src/
+│   ├── extension.ts    # VSCode拡張のエントリーポイント
+│   ├── util/
+│   │   ├── capture.ts  # Puppeteerを使用したスクリーンショット撮影処理
+│   │   ├── diff.ts     # PixelMatchを使用した画像比較処理
+│   ├── webview/
+│   │   ├── pixelDiff.ts  # ピクセル差分ビューのUI
+│   │   ├── overlay.ts    # オーバーレイ比較ビューのUI
+│── package.json          # 拡張機能のメタデータ
+│── tsconfig.json         # TypeScript設定
+│── README.md
+│── .vscode/
+│   ├── launch.json
+│   ├── tasks.json
+│── screenshots/          # 取得したスクリーンショットの保存フォルダ
+│── node_modules/
+```
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+## セットアップ手順
 
-## Working with Markdown
+リポジトリをクローン後、root で下記を実行
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+```sh
+npm install
+npm run compile
+```
 
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+## 開発手順
 
-## For more information
+#### 1. コードの実行、オートコンパイル
 
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+```
+npm run watch
+```
 
-**Enjoy!**
+---
+
+#### 2. デバッグモードで拡張機能を起動
+
+・`F5` を押下、または実行とデバッグタブより `Run Extension`を押下
+<img width="504" alt="Image" src="https://github.com/user-attachments/assets/cf3f2ff1-1eb2-44eb-9228-5bea584d981e" />
+
+**_コードを修正した場合、オートコンパイル後に`F5`で再起動する必要があります。_**
+
+---
+
+#### 3. VsCode のコマンドパレットでコードを実行
+
+・(`Cmd` + `Shift` + `P`) を押下<br>
+・`visual diff locate`と入力・実行する。
+<img width="929" alt="Image" src="https://github.com/user-attachments/assets/6c4e92b1-fc68-4c71-925f-fd64e02eca4e" />
+
+・比較したいページの URL を指示に従って入力する
+<img width="845" alt="Image" src="https://github.com/user-attachments/assets/5787eb73-4c50-4557-9624-3ee5a535e694" />
+<img width="878" alt="Image" src="https://github.com/user-attachments/assets/60af27e7-7de2-4252-b395-1f162c32dc58" />
+
+・結果が出力される
+<img width="1440" alt="Image" src="https://github.com/user-attachments/assets/e2349d83-9298-4b6d-b13b-d9dbd0c1d785" />
