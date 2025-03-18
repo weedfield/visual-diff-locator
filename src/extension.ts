@@ -5,6 +5,7 @@ import { captureScreenshots } from './util/capture';
 import { compareScreenshots } from './util/diff';
 import { showPixelDiffView } from './webview/pixelDiff';
 import { showOverlayView } from './webview/overlay';
+import { getAvailableChromeProfiles } from './util/chromeProfile';
 import { mkdirSync } from 'fs';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -38,7 +39,6 @@ async function startComparison(context: vscode.ExtensionContext) {
 
     // **認証が必要かチェック**
     if (await isAuthenticationRequired(urls.demoUrl) || await isAuthenticationRequired(urls.prodUrl)) {
-
         const authMethod = await chooseAuthMethod();
         if (!authMethod) {
             vscode.window.showErrorMessage('認証方法の選択がキャンセルされました。');
@@ -56,6 +56,9 @@ async function startComparison(context: vscode.ExtensionContext) {
         }
     }
 
+    // **Chrome プロファイルを選択**
+    const chromeProfile = await selectChromeProfile();
+
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath || __dirname;
     const timestamp = new Date().toISOString().replace(/:/g, '-').split('.')[0]; // `YYYY-MM-DDTHH-MM-SS`
     const outputDir = path.join(workspaceFolder, 'screenshots', timestamp);
@@ -63,7 +66,7 @@ async function startComparison(context: vscode.ExtensionContext) {
 
     try {
         vscode.window.showInformationMessage('スクリーンショットを取得中...');
-        const { demoScreenshot, prodScreenshot } = await captureScreenshots(urls.demoUrl, urls.prodUrl, outputDir, authCredentials, useManualLogin);
+        const { demoScreenshot, prodScreenshot } = await captureScreenshots(urls.demoUrl, urls.prodUrl, outputDir, authCredentials, useManualLogin, chromeProfile);
 
         const diffPath = path.join(outputDir, 'diff.png');
         await compareScreenshots(demoScreenshot, prodScreenshot, diffPath);
@@ -114,4 +117,18 @@ async function getAuthCredentials(): Promise<{ username: string; password: strin
     if (!password) { return undefined; };
 
     return { username, password };
+}
+
+/**
+ * Chrome プロファイルを選択する
+ */
+async function selectChromeProfile(): Promise<string | undefined> {
+    const profiles = getAvailableChromeProfiles();
+    if (profiles.length === 0) {
+        vscode.window.showErrorMessage('Chrome のプロファイルが見つかりません。');
+        return undefined;
+    }
+
+    const selected = await vscode.window.showQuickPick(profiles, { placeHolder: '使用する Chrome プロファイルを選択' });
+    return selected;
 }
