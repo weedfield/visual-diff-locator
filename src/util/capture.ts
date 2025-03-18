@@ -6,22 +6,44 @@ import * as path from 'path';
  * @param browser Puppeteerのブラウザインスタンス
  * @param url キャプチャするページのURL
  * @param outputPath スクリーンショットの保存先
+ * @param authCredentials 認証情報（オプション）
+ * @param useManualLogin 手動ログインを使用する場合は true
  */
-async function takeScreenshot(browser: puppeteer.Browser, url: string, outputPath: string) {
+async function takeScreenshot(
+    browser: puppeteer.Browser, 
+    url: string, 
+    outputPath: string, 
+    authCredentials?: { username: string; password: string },
+    useManualLogin: boolean = false
+) {
     const page = await browser.newPage();
-    await page.goto(url, { waitUntil: 'networkidle2' });
 
-    // ページの実際のサイズを取得
-    const dimensions = await page.evaluate(() => ({
-        width: document.body.scrollWidth,
-        height: document.body.scrollHeight
-    }));
+    if (authCredentials) {
+        await page.authenticate(authCredentials);
+    }
 
-    // ビューポートのサイズをページ全体に設定
-    await page.setViewport(dimensions);
-    await page.screenshot({ path: outputPath, fullPage: true });
+    try {
+        if (useManualLogin) {
+            await page.goto(url, { waitUntil: 'domcontentloaded' });
+            await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 });
+        } else {
+            await page.goto(url, { waitUntil: 'networkidle2' });
+        }
 
-    await page.close();
+        // ページの実際のサイズを取得
+        const dimensions = await page.evaluate(() => ({
+            width: document.body.scrollWidth,
+            height: document.body.scrollHeight
+        }));
+
+        // ビューポートのサイズをページ全体に設定
+        await page.setViewport(dimensions);
+        await page.screenshot({ path: outputPath, fullPage: true });
+    } catch (error) {
+        throw new Error(`スクリーンショット取得失敗: ${url} → ${outputPath}\n${error}`);
+    } finally {
+        await page.close();
+    }
 }
 
 /**
@@ -29,24 +51,34 @@ async function takeScreenshot(browser: puppeteer.Browser, url: string, outputPat
  * @param demoUrl デモ環境のURL
  * @param prodUrl 本番環境のURL
  * @param outputDir 画像の保存ディレクトリ
+ * @param authCredentials 認証情報（オプション）
  */
-export async function captureScreenshots(demoUrl: string, prodUrl: string, outputDir: string) {
+export async function captureScreenshots(
+    demoUrl: string, 
+    prodUrl: string, 
+    outputDir: string, 
+    authCredentials?: { username: string; password: string },
+    useManualLogin: boolean = false
+) {
     const demoScreenshotPath = path.join(outputDir, 'demo.png');
     const prodScreenshotPath = path.join(outputDir, 'prod.png');
 
     const browser = await puppeteer.launch({
-        headless: true,
-        defaultViewport: null
+        headless: !useManualLogin, 
+        executablePath: puppeteer.executablePath(),
+        defaultViewport: null, // デフォルトのViewportをoffにする
+        args: ['--proxy-auto-detect'] // VPN や社内プロキシを継承
     });
 
     try {
         await Promise.all([
-            takeScreenshot(browser, demoUrl, demoScreenshotPath),
-            takeScreenshot(browser, prodUrl, prodScreenshotPath)
+            takeScreenshot(browser, demoUrl, demoScreenshotPath, authCredentials, useManualLogin),
+            takeScreenshot(browser, prodUrl, prodScreenshotPath, authCredentials, useManualLogin)
         ]);
-    } finally {
-        await browser.close(); 
-    }
 
-    return { demoScreenshot: demoScreenshotPath, prodScreenshot: prodScreenshotPath };
+        return { demoScreenshot: demoScreenshotPath, prodScreenshot: prodScreenshotPath };
+
+    } finally {
+        await browser.close();
+    }
 }
