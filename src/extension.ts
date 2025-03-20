@@ -1,12 +1,13 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { isAuthenticationRequired } from './util/authCheck';
-import { captureScreenshots } from './util/capture';
+import { captureScreenshots, CUSTOM_DEVICES, DeviceCategory } from './util/capture';
 import { compareScreenshots } from './util/diff';
 import { showPixelDiffView } from './webview/pixelDiff';
 import { showOverlayView } from './webview/overlay';
 import { getAvailableChromeProfiles } from './util/chromeProfile';
 import { mkdirSync } from 'fs';
+import * as puppeteer from 'puppeteer';
 
 export function activate(context: vscode.ExtensionContext) {
     const disposable = vscode.commands.registerCommand('visual-diff-locator.start', async () => {
@@ -48,7 +49,7 @@ async function startComparison(context: vscode.ExtensionContext) {
         if (authMethod === 'input') {
             authCredentials = await getAuthCredentials();
             if (!authCredentials) {
-                vscode.window.showErrorMessage('認証方法の入力がキャンセルされました。');
+                vscode.window.showErrorMessage('認証情報の入力がキャンセルされました。');
                 return;
             }
         } else if (authMethod === 'manual') {
@@ -65,8 +66,28 @@ async function startComparison(context: vscode.ExtensionContext) {
     mkdirSync(outputDir, { recursive: true });
 
     try {
-        vscode.window.showInformationMessage('スクリーンショットを取得中...');
-        const { demoScreenshot, prodScreenshot } = await captureScreenshots(urls.demoUrl, urls.prodUrl, outputDir, authCredentials, useManualLogin, chromeProfile);
+        const selectedCategory = await chooseDeviceCategory();
+        if (!selectedCategory) {
+            vscode.window.showErrorMessage('デバイスカテゴリの選択がキャンセルされました。');
+            return;
+        }
+
+        const selectedDevice = await chooseDevice(selectedCategory);
+        if (!selectedDevice) {
+            vscode.window.showErrorMessage('デバイス選択がキャンセルされました。');
+            return;
+        }
+
+        vscode.window.showInformationMessage(`スクリーンショットを取得中... (デバイス: ${selectedDevice})`);
+        const { demoScreenshot, prodScreenshot } = await captureScreenshots(
+            urls.demoUrl, 
+            urls.prodUrl, 
+            outputDir, 
+            useManualLogin, 
+            selectedDevice,
+            authCredentials, 
+            chromeProfile, 
+        );
 
         const diffPath = path.join(outputDir, 'diff.png');
         await compareScreenshots(demoScreenshot, prodScreenshot, diffPath);
@@ -84,6 +105,37 @@ async function startComparison(context: vscode.ExtensionContext) {
     }
 }
 
+/**
+ * デバイスカテゴリを選択
+ */
+async function chooseDeviceCategory(): Promise<DeviceCategory | undefined> {
+    const categories = Object.keys(CUSTOM_DEVICES);
+    return await vscode.window.showQuickPick(categories, { placeHolder: 'PC または モバイル を選択してください' }) as DeviceCategory;
+}
+
+/**
+ * 選択したカテゴリの中からデバイスを選択
+ */
+async function chooseDevice(category: DeviceCategory): Promise<puppeteer.Device | undefined> {
+    const devices = Object.keys(CUSTOM_DEVICES[category]);
+    const selectedDeviceName = await vscode.window.showQuickPick(devices, { placeHolder: 'デバイスを選択してください' });
+
+    if (!selectedDeviceName) { return undefined; }
+
+    const selectedDevice = CUSTOM_DEVICES[category][selectedDeviceName];
+
+    if (!selectedDevice) {
+        vscode.window.showErrorMessage(`選択されたデバイス (${selectedDeviceName}) が見つかりませんでした。`);
+        return undefined;
+    }
+
+    return selectedDevice;
+}
+
+
+/**
+ * URL の入力を受け取る
+ */
 async function getUrls(): Promise<{ demoUrl: string, prodUrl: string } | null> {
     const demoUrl = await vscode.window.showInputBox({ prompt: 'デモ環境のURLを入力', placeHolder: 'http://localhost:3000' });
     if (!demoUrl) { return null; }
@@ -129,6 +181,5 @@ async function selectChromeProfile(): Promise<string | undefined> {
         return undefined;
     }
 
-    const selected = await vscode.window.showQuickPick(profiles, { placeHolder: '使用する Chrome プロファイルを選択' });
-    return selected;
+    return await vscode.window.showQuickPick(profiles, { placeHolder: '使用する Chrome プロファイルを選択' });
 }

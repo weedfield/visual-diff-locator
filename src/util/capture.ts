@@ -2,23 +2,43 @@ import * as puppeteer from 'puppeteer';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
+export type DeviceCategory = 'PC' | 'Mobile';
+export type DeviceList = Record<string, puppeteer.Device>;
+
+export const CUSTOM_DEVICES: Record<DeviceCategory, DeviceList> = {
+    PC: {
+        'Desktop Default': {
+            name: 'Desktop PC',
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            viewport: {
+                width: 1920,
+                height: 1080,
+                deviceScaleFactor: 1,
+                isMobile: false,
+                hasTouch: false
+            }
+        } as puppeteer.Device
+    },
+    Mobile: {
+        ...puppeteer.KnownDevices
+    }
+};
+
 /**
  * 指定したURLのスクリーンショットを撮影し、保存する
- * @param browser Puppeteerのブラウザインスタンス
+ * @param page Puppeteerのページインスタンス
  * @param url キャプチャするページのURL
  * @param outputPath スクリーンショットの保存先
- * @param authCredentials 認証情報（オプション）
  * @param useManualLogin 手動ログインを使用する場合は true
+ * @param authCredentials 認証情報（オプション）
  */
 async function takeScreenshot(
-    browser: puppeteer.Browser, 
-    url: string, 
-    outputPath: string, 
-    authCredentials?: { username: string; password: string },
-    useManualLogin: boolean = false
+    page: puppeteer.Page,
+    url: string,
+    outputPath: string,
+    useManualLogin: boolean = false,
+    authCredentials?: { username: string; password: string }
 ) {
-    const page = await browser.newPage();
-
     if (authCredentials) {
         await page.authenticate(authCredentials);
     }
@@ -26,7 +46,6 @@ async function takeScreenshot(
     try {
         if (useManualLogin) {
             try {
-                // **認証エラーが出ても処理を継続できるように try-catch**
                 await page.goto(url, { waitUntil: 'domcontentloaded' });
             } catch (error: any) {
                 if (error.message.includes('ERR_INVALID_AUTH_CREDENTIALS')) {
@@ -35,8 +54,6 @@ async function takeScreenshot(
                     throw error;
                 }
             }
-            
-            // TODO: vscodeAPIの処理をこのファイルから除く
 
             vscode.window.showInformationMessage('手動でログインを完了したら「OK」を押してください。');
 
@@ -55,19 +72,15 @@ async function takeScreenshot(
             await page.goto(url, { waitUntil: 'networkidle2' });
         }
 
-        // ページの実際のサイズを取得
         const dimensions = await page.evaluate(() => ({
             width: document.body.scrollWidth,
             height: document.body.scrollHeight
         }));
 
-        // ビューポートのサイズをページ全体に設定
         await page.setViewport(dimensions);
         await page.screenshot({ path: outputPath, fullPage: true });
     } catch (error) {
         throw new Error(`スクリーンショット取得失敗: ${url} → ${outputPath}\n${error}`);
-    } finally {
-        await page.close();
     }
 }
 
@@ -76,28 +89,30 @@ async function takeScreenshot(
  * @param demoUrl デモ環境のURL
  * @param prodUrl 本番環境のURL
  * @param outputDir 画像の保存ディレクトリ
+ * @param useManualLogin 手動ログインの有無
+ * @param selectedDevice 使用するデバイス
  * @param authCredentials 認証情報（オプション）
  * @param chromeProfile Chrome のプロファイルディレクトリ
  */
 export async function captureScreenshots(
-    demoUrl: string, 
-    prodUrl: string, 
-    outputDir: string, 
-    authCredentials?: { username: string; password: string },
+    demoUrl: string,
+    prodUrl: string,
+    outputDir: string,
     useManualLogin: boolean = false,
-    chromeProfile?: string
+    selectedDevice: puppeteer.Device,
+    authCredentials?: { username: string; password: string },
+    chromeProfile?: string,
 ) {
     const demoScreenshotPath = path.join(outputDir, 'demo.png');
     const prodScreenshotPath = path.join(outputDir, 'prod.png');
 
     const launchOptions: puppeteer.LaunchOptions = {
-        headless: !useManualLogin, 
+        headless: !useManualLogin,
         executablePath: puppeteer.executablePath(),
-        defaultViewport: null, // デフォルトのViewportをoffにする
-        args: ['--proxy-auto-detect'] // VPN や社内プロキシを継承
+        defaultViewport: null,
+        args: ['--proxy-auto-detect']
     };
 
-    // **プロファイルが指定されている場合は適用**
     if (chromeProfile) {
         launchOptions.userDataDir = chromeProfile;
     }
@@ -105,9 +120,13 @@ export async function captureScreenshots(
     const browser = await puppeteer.launch(launchOptions);
 
     try {
+        const page1 = await browser.newPage();
+        const page2 = await browser.newPage();
+        await Promise.all([page1.emulate(selectedDevice), page2.emulate(selectedDevice)]);
+
         await Promise.all([
-            takeScreenshot(browser, demoUrl, demoScreenshotPath, authCredentials, useManualLogin),
-            takeScreenshot(browser, prodUrl, prodScreenshotPath, authCredentials, useManualLogin)
+            takeScreenshot(page1, demoUrl, demoScreenshotPath, useManualLogin, authCredentials),
+            takeScreenshot(page2, prodUrl, prodScreenshotPath, useManualLogin, authCredentials)
         ]);
 
         return { demoScreenshot: demoScreenshotPath, prodScreenshot: prodScreenshotPath };
