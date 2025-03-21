@@ -41,10 +41,10 @@ async function savePng(png: PNG, filePath: string): Promise<void> {
  * 画像のサイズを統一し、比較可能な状態にする
  * @param img1 画像1
  * @param img2 画像2
- * @param unifyWidth 横幅も統一するか（デフォルト: false）
+ * @param unifyWidth 横幅も統一するか（デフォルト: true）
  * @returns 統一後の画像
  */
-function alignImages(img1: PNG, img2: PNG, unifyWidth: boolean = false): { img1: PNG; img2: PNG } {
+function alignImages(img1: PNG, img2: PNG, unifyWidth: boolean = true): { img1: PNG; img2: PNG } {
     const width = unifyWidth ? Math.max(img1.width, img2.width) : img1.width;
     const height = Math.max(img1.height, img2.height);
 
@@ -63,7 +63,7 @@ function alignImages(img1: PNG, img2: PNG, unifyWidth: boolean = false): { img1:
  * @param demoPath デモ環境のスクリーンショット
  * @param prodPath 本番環境のスクリーンショット
  * @param outputPath 差分画像の保存先
- * @param unifyWidth 横幅も統一するか（デフォルト: false）
+ * @param unifyWidth 横幅も統一するか（デフォルト: true）
  * @throws 画像の比較に失敗した場合、エラーを投げる
  * @returns 差分画像のパス
  */
@@ -71,10 +71,10 @@ export async function compareScreenshots(
     demoPath: string,
     prodPath: string,
     outputPath: string,
-    unifyWidth: boolean = false
+    unifyWidth: boolean = true
 ): Promise<string> {
     try {
-        const { default: pixelmatch } = await import('pixelmatch'); // ✅ CJS/ESM の問題を回避
+        const { default: pixelmatch } = await import('pixelmatch');
         const [img1, img2] = await Promise.all([loadPng(demoPath), loadPng(prodPath)]);
 
         // 画像サイズを統一

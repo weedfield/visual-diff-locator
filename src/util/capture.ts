@@ -1,28 +1,5 @@
 import * as puppeteer from 'puppeteer';
 import * as path from 'path';
-import * as vscode from 'vscode';
-
-export type DeviceCategory = 'PC' | 'Mobile';
-export type DeviceList = Record<string, puppeteer.Device>;
-
-export const CUSTOM_DEVICES: Record<DeviceCategory, DeviceList> = {
-    PC: {
-        'Desktop Default': {
-            name: 'Desktop PC',
-            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            viewport: {
-                width: 1920,
-                height: 1080,
-                deviceScaleFactor: 1,
-                isMobile: false,
-                hasTouch: false
-            }
-        } as puppeteer.Device
-    },
-    Mobile: {
-        ...puppeteer.KnownDevices
-    }
-};
 
 /**
  * 指定したページのスクリーンショットを撮影し、保存する
@@ -51,6 +28,7 @@ async function takeScreenshot(page: puppeteer.Page, outputPath: string) {
  * @param isManualShot 手動スクリーンショットフラグ
  * @param selectedDevice 使用するデバイス
  * @param chromeProfile Chrome のプロファイルディレクトリ
+ * @param waitForUser 任意でスクリーンショット前に待機処理を挟める（手動モード用）
  */
 export async function captureScreenshots(
     demoUrl: string,
@@ -58,7 +36,8 @@ export async function captureScreenshots(
     outputDir: string,
     isManualShot: boolean,
     selectedDevice: puppeteer.Device,
-    chromeProfile?: string
+    chromeProfile?: string,
+    waitForUser?: () => Promise<void>
 ) {
     const demoScreenshotPath = path.join(outputDir, 'demo.png');
     const prodScreenshotPath = path.join(outputDir, 'prod.png');
@@ -86,14 +65,8 @@ export async function captureScreenshots(
             prodPage.goto(prodUrl, { waitUntil: 'networkidle2' })
         ]);
 
-        // 手動スクリーンショット確認
-        if (isManualShot) {
-            const response = await vscode.window.showInformationMessage(
-                'スクリーンショットを撮影する準備ができたら「OK」を押してください。', 'OK'
-            );
-            if (!response) {
-                throw new Error('スクリーンショットの撮影がキャンセルされました。');
-            }
+        if (waitForUser) {
+            await waitForUser();
         }
 
         // スクリーンショット撮影

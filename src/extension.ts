@@ -1,13 +1,14 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { isAuthenticationRequired } from './util/authCheck';
-import { captureScreenshots, CUSTOM_DEVICES, DeviceCategory } from './util/capture';
+import { captureScreenshots } from './util/capture';
 import { compareScreenshots } from './util/diff';
 import { showPixelDiffView } from './webview/pixelDiff';
 import { showOverlayView } from './webview/overlay';
 import { getAvailableChromeProfiles } from './util/chromeProfile';
 import { mkdirSync } from 'fs';
 import * as puppeteer from 'puppeteer';
+import { DeviceCategory } from './types';
+import { CUSTOM_DEVICES } from './config/devices';
 
 export function activate(context: vscode.ExtensionContext) {
     const disposable = vscode.commands.registerCommand('visual-diff-locator.start', async () => {
@@ -35,10 +36,10 @@ async function startComparison(context: vscode.ExtensionContext) {
         return;
     }
 
-    // **スクリーンショット取得方法を選択**
-    const screenshotMode = await chooseScreenshotMode();
-    if (!screenshotMode) {
-        vscode.window.showErrorMessage('スクリーンショット取得方法の選択がキャンセルされました。');
+    // スクリーンショット方式の選択
+    const isManualShot = await chooseScreenshotMode();
+    if (isManualShot === undefined) {
+        vscode.window.showErrorMessage('モード選択がキャンセルされました。');
         return;
     }
 
@@ -60,15 +61,28 @@ async function startComparison(context: vscode.ExtensionContext) {
     const outputDir = path.join(workspaceFolder, 'screenshots', timestamp);
     mkdirSync(outputDir, { recursive: true });
 
+    // 手動モードの場合の待機関数
+    const waitForUser = isManualShot
+        ? async () => {
+            const response = await vscode.window.showInformationMessage(
+                'スクリーンショットを撮影する準備ができたら「OK」を押してください。', 'OK'
+            );
+            if (!response) {
+                throw new Error('スクリーンショットの撮影がキャンセルされました。');
+            }
+        }
+        : undefined;
+
     try {
         vscode.window.showInformationMessage(`スクリーンショットを取得中... (デバイス: ${selectedDevice})`);
         const { demoScreenshot, prodScreenshot } = await captureScreenshots(
-            urls.demoUrl, 
-            urls.prodUrl, 
-            outputDir, 
-            screenshotMode === 'manual',
+            urls.demoUrl,
+            urls.prodUrl,
+            outputDir,
+            isManualShot,
             selectedDevice,
-            chromeProfile
+            chromeProfile,
+            waitForUser
         );
 
         const diffPath = path.join(outputDir, 'diff.png');
@@ -80,7 +94,6 @@ async function startComparison(context: vscode.ExtensionContext) {
             showPixelDiffView(context, diffPath),
             showOverlayView(context, demoScreenshot, prodScreenshot)
         ]);
-
     } catch (error) {
         vscode.window.showErrorMessage(`${error}`);
         console.error(error);
@@ -90,12 +103,11 @@ async function startComparison(context: vscode.ExtensionContext) {
 /**
  * スクリーンショット取得方法の選択
  */
-async function chooseScreenshotMode(): Promise<'manual' | 'auto' | undefined> {
+async function chooseScreenshotMode(): Promise<boolean | undefined> {
     const options = ['自動で撮影する', '手動で撮影する'];
-    const selected = await vscode.window.showQuickPick(options, { placeHolder: 'スクリーンショット取得方法を選択してください' });
-
-    if (selected === '手動で撮影する') return 'manual';
-    if (selected === '自動で撮影する') return 'auto';
+    const selected = await vscode.window.showQuickPick(options, { placeHolder: 'スクリーンショットの撮影方法を選択してください' });
+    if (selected === '自動で撮影する') return false;
+    if (selected === '手動で撮影する') return true;
     return undefined;
 }
 
@@ -115,15 +127,7 @@ async function chooseDevice(category: DeviceCategory): Promise<puppeteer.Device 
     const selectedDeviceName = await vscode.window.showQuickPick(devices, { placeHolder: 'デバイスを選択してください' });
 
     if (!selectedDeviceName) { return undefined; }
-
-    const selectedDevice = CUSTOM_DEVICES[category][selectedDeviceName];
-
-    if (!selectedDevice) {
-        vscode.window.showErrorMessage(`選択されたデバイス (${selectedDeviceName}) が見つかりませんでした。`);
-        return undefined;
-    }
-
-    return selectedDevice;
+    return CUSTOM_DEVICES[category][selectedDeviceName];
 }
 
 /**
