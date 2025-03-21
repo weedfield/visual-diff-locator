@@ -35,58 +35,40 @@ async function startComparison(context: vscode.ExtensionContext) {
         return;
     }
 
-    let authCredentials: { username: string; password: string } | undefined;
-    let useManualLogin = false;
-
-    // **認証が必要かチェック**
-    if (await isAuthenticationRequired(urls.demoUrl) || await isAuthenticationRequired(urls.prodUrl)) {
-        const authMethod = await chooseAuthMethod();
-        if (!authMethod) {
-            vscode.window.showErrorMessage('認証方法の選択がキャンセルされました。');
-            return;
-        }
-
-        if (authMethod === 'input') {
-            authCredentials = await getAuthCredentials();
-            if (!authCredentials) {
-                vscode.window.showErrorMessage('認証情報の入力がキャンセルされました。');
-                return;
-            }
-        } else if (authMethod === 'manual') {
-            useManualLogin = true;
-        }
+    // **スクリーンショット取得方法を選択**
+    const screenshotMode = await chooseScreenshotMode();
+    if (!screenshotMode) {
+        vscode.window.showErrorMessage('スクリーンショット取得方法の選択がキャンセルされました。');
+        return;
     }
 
-    // **Chrome プロファイルを選択**
     const chromeProfile = await selectChromeProfile();
+    const selectedCategory = await chooseDeviceCategory();
+    if (!selectedCategory) {
+        vscode.window.showErrorMessage('デバイスカテゴリの選択がキャンセルされました。');
+        return;
+    }
+
+    const selectedDevice = await chooseDevice(selectedCategory);
+    if (!selectedDevice) {
+        vscode.window.showErrorMessage('デバイス選択がキャンセルされました。');
+        return;
+    }
 
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath || __dirname;
-    const timestamp = new Date().toISOString().replace(/:/g, '-').split('.')[0]; // `YYYY-MM-DDTHH-MM-SS`
+    const timestamp = new Date().toISOString().replace(/:/g, '-').split('.')[0];
     const outputDir = path.join(workspaceFolder, 'screenshots', timestamp);
     mkdirSync(outputDir, { recursive: true });
 
     try {
-        const selectedCategory = await chooseDeviceCategory();
-        if (!selectedCategory) {
-            vscode.window.showErrorMessage('デバイスカテゴリの選択がキャンセルされました。');
-            return;
-        }
-
-        const selectedDevice = await chooseDevice(selectedCategory);
-        if (!selectedDevice) {
-            vscode.window.showErrorMessage('デバイス選択がキャンセルされました。');
-            return;
-        }
-
         vscode.window.showInformationMessage(`スクリーンショットを取得中... (デバイス: ${selectedDevice})`);
         const { demoScreenshot, prodScreenshot } = await captureScreenshots(
             urls.demoUrl, 
             urls.prodUrl, 
             outputDir, 
-            useManualLogin, 
+            screenshotMode === 'manual',
             selectedDevice,
-            authCredentials, 
-            chromeProfile, 
+            chromeProfile
         );
 
         const diffPath = path.join(outputDir, 'diff.png');
@@ -103,6 +85,18 @@ async function startComparison(context: vscode.ExtensionContext) {
         vscode.window.showErrorMessage(`${error}`);
         console.error(error);
     }
+}
+
+/**
+ * スクリーンショット取得方法の選択
+ */
+async function chooseScreenshotMode(): Promise<'manual' | 'auto' | undefined> {
+    const options = ['自動で撮影する', '手動で撮影する'];
+    const selected = await vscode.window.showQuickPick(options, { placeHolder: 'スクリーンショット取得方法を選択してください' });
+
+    if (selected === '手動で撮影する') return 'manual';
+    if (selected === '自動で撮影する') return 'auto';
+    return undefined;
 }
 
 /**
@@ -132,7 +126,6 @@ async function chooseDevice(category: DeviceCategory): Promise<puppeteer.Device 
     return selectedDevice;
 }
 
-
 /**
  * URL の入力を受け取る
  */
@@ -144,31 +137,6 @@ async function getUrls(): Promise<{ demoUrl: string, prodUrl: string } | null> {
     if (!prodUrl) { return null; }
 
     return { demoUrl, prodUrl };
-}
-
-/**
- * 認証方法を選択する（手動入力 or 自動ログイン）
- */
-async function chooseAuthMethod(): Promise<'manual' | 'input' | undefined> {
-    const options = ['認証情報を入力する', '手動でログインする'];
-    const selected = await vscode.window.showQuickPick(options, { placeHolder: '認証方法を選択してください' });
-
-    if (selected === '認証情報を入力する') { return 'input'; }; 
-    if (selected === '手動でログインする') { return 'manual'; } ;
-    return undefined;
-}
-
-/**
- * Basic 認証が必要な場合に認証情報を取得する
- */
-async function getAuthCredentials(): Promise<{ username: string; password: string } | undefined> {
-    const username = await vscode.window.showInputBox({ prompt: 'Basic 認証のユーザー名を入力' });
-    if (!username) { return undefined; };
-
-    const password = await vscode.window.showInputBox({ prompt: 'Basic 認証のパスワードを入力', password: true });
-    if (!password) { return undefined; };
-
-    return { username, password };
 }
 
 /**

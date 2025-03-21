@@ -25,53 +25,12 @@ export const CUSTOM_DEVICES: Record<DeviceCategory, DeviceList> = {
 };
 
 /**
- * 指定したURLのスクリーンショットを撮影し、保存する
+ * 指定したページのスクリーンショットを撮影し、保存する
  * @param page Puppeteerのページインスタンス
- * @param url キャプチャするページのURL
  * @param outputPath スクリーンショットの保存先
- * @param useManualLogin 手動ログインを使用する場合は true
- * @param authCredentials 認証情報（オプション）
  */
-async function takeScreenshot(
-    page: puppeteer.Page,
-    url: string,
-    outputPath: string,
-    useManualLogin: boolean = false,
-    authCredentials?: { username: string; password: string }
-) {
-    if (authCredentials) {
-        await page.authenticate(authCredentials);
-    }
-
+async function takeScreenshot(page: puppeteer.Page, outputPath: string) {
     try {
-        if (useManualLogin) {
-            try {
-                await page.goto(url, { waitUntil: 'domcontentloaded' });
-            } catch (error: any) {
-                if (error.message.includes('ERR_INVALID_AUTH_CREDENTIALS')) {
-                    console.warn('手動ログインを待機');
-                } else {
-                    throw error;
-                }
-            }
-
-            vscode.window.showInformationMessage('手動でログインを完了したら「OK」を押してください。');
-
-            await new Promise<void>((resolve) => {
-                const interval = setInterval(async () => {
-                    const response = await vscode.window.showInformationMessage(
-                        'ログインが完了しましたか？', 'はい'
-                    );
-                    if (response === 'はい') {
-                        clearInterval(interval);
-                        resolve();
-                    }
-                }, 3000);
-            });
-        } else {
-            await page.goto(url, { waitUntil: 'networkidle2' });
-        }
-
         const dimensions = await page.evaluate(() => ({
             width: document.body.scrollWidth,
             height: document.body.scrollHeight
@@ -80,7 +39,7 @@ async function takeScreenshot(
         await page.setViewport(dimensions);
         await page.screenshot({ path: outputPath, fullPage: true });
     } catch (error) {
-        throw new Error(`スクリーンショット取得失敗: ${url} → ${outputPath}\n${error}`);
+        throw new Error(`スクリーンショット取得失敗: ${outputPath}\n${error}`);
     }
 }
 
@@ -89,25 +48,23 @@ async function takeScreenshot(
  * @param demoUrl デモ環境のURL
  * @param prodUrl 本番環境のURL
  * @param outputDir 画像の保存ディレクトリ
- * @param useManualLogin 手動ログインの有無
+ * @param isManualShot 手動スクリーンショットフラグ
  * @param selectedDevice 使用するデバイス
- * @param authCredentials 認証情報（オプション）
  * @param chromeProfile Chrome のプロファイルディレクトリ
  */
 export async function captureScreenshots(
     demoUrl: string,
     prodUrl: string,
     outputDir: string,
-    useManualLogin: boolean = false,
+    isManualShot: boolean,
     selectedDevice: puppeteer.Device,
-    authCredentials?: { username: string; password: string },
-    chromeProfile?: string,
+    chromeProfile?: string
 ) {
     const demoScreenshotPath = path.join(outputDir, 'demo.png');
     const prodScreenshotPath = path.join(outputDir, 'prod.png');
 
     const launchOptions: puppeteer.LaunchOptions = {
-        headless: !useManualLogin,
+        headless: !isManualShot,
         executablePath: puppeteer.executablePath(),
         defaultViewport: null,
         args: ['--proxy-auto-detect']
@@ -120,17 +77,32 @@ export async function captureScreenshots(
     const browser = await puppeteer.launch(launchOptions);
 
     try {
-        const page1 = await browser.newPage();
-        const page2 = await browser.newPage();
-        await Promise.all([page1.emulate(selectedDevice), page2.emulate(selectedDevice)]);
+        const demoPage = await browser.newPage();
+        const prodPage = await browser.newPage();
+        await Promise.all([demoPage.emulate(selectedDevice), prodPage.emulate(selectedDevice)]);
 
         await Promise.all([
-            takeScreenshot(page1, demoUrl, demoScreenshotPath, useManualLogin, authCredentials),
-            takeScreenshot(page2, prodUrl, prodScreenshotPath, useManualLogin, authCredentials)
+            demoPage.goto(demoUrl, { waitUntil: 'networkidle2' }),
+            prodPage.goto(prodUrl, { waitUntil: 'networkidle2' })
+        ]);
+
+        // 手動スクリーンショット確認
+        if (isManualShot) {
+            const response = await vscode.window.showInformationMessage(
+                'スクリーンショットを撮影する準備ができたら「OK」を押してください。', 'OK'
+            );
+            if (!response) {
+                throw new Error('スクリーンショットの撮影がキャンセルされました。');
+            }
+        }
+
+        // スクリーンショット撮影
+        await Promise.all([
+            takeScreenshot(demoPage, demoScreenshotPath),
+            takeScreenshot(prodPage, prodScreenshotPath)
         ]);
 
         return { demoScreenshot: demoScreenshotPath, prodScreenshot: prodScreenshotPath };
-
     } finally {
         await browser.close();
     }
