@@ -1,7 +1,6 @@
 import * as puppeteer from 'puppeteer';
 import * as path from 'path';
-import * as fs from 'fs';
-import * as vscode from 'vscode';
+import { applyCookies, saveCookies } from './cookieService';
 
 /**
  * 指定したページのスクリーンショットを撮影し、保存する
@@ -17,52 +16,13 @@ async function takeScreenshot(page: puppeteer.Page, outputPath: string) {
 }
 
 /**
- * ログイン済みCookieがあれば適用する
- */
-async function applyCookiesIfAvailable(page: puppeteer.Page) {
-  const workspaceRoot = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
-  if (!workspaceRoot) return;
-
-  const cookiePath = path.join(workspaceRoot, '.vscode', 'visual-diff', 'cookies.json');
-
-  if (fs.existsSync(cookiePath)) {
-    try {
-      const cookies = JSON.parse(fs.readFileSync(cookiePath, 'utf-8'));
-      await page.setCookie(...cookies);
-      console.log('[Visual Diff] Cookie を適用しました:', cookiePath);
-    } catch (error) {
-      console.warn('[Visual Diff] Cookie の読み込みに失敗しました:', error);
-    }
-  }
-}
-
-/**
- * 現在のCookieを保存する（手動ログイン後）
- */
-async function saveCookiesIfNeeded(page: puppeteer.Page) {
-  const workspaceRoot = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
-  if (!workspaceRoot) return;
-
-  const dir = path.join(workspaceRoot, '.vscode', 'visual-diff');
-  const file = path.join(dir, 'cookies.json');
-
-  try {
-    fs.mkdirSync(dir, { recursive: true });
-    const cookies = await page.cookies();
-    fs.writeFileSync(file, JSON.stringify(cookies, null, 2), 'utf-8');
-    console.log('[Visual Diff] Cookie を保存しました:', file);
-  } catch (error) {
-    console.warn('[Visual Diff] Cookie の保存に失敗しました:', error);
-  }
-}
-
-/**
  * デモ環境と本番環境のスクリーンショットを撮影
  * @param demoUrl デモ環境のURL
  * @param prodUrl 本番環境のURL
  * @param outputDir 画像の保存ディレクトリ
  * @param isManualShot 手動スクリーンショットフラグ
  * @param selectedDevice 使用するデバイス
+ * @param workspaceRoot ワークスペースルートパス（Cookie保存のため）
  * @param waitForUser 任意でスクリーンショット前に待機処理を挟める（手動モード用）
  */
 export async function captureScreenshots(
@@ -71,6 +31,7 @@ export async function captureScreenshots(
   outputDir: string,
   isManualShot: boolean,
   selectedDevice: puppeteer.Device,
+  workspaceRoot: string,
   waitForUser?: () => Promise<void>
 ) {
   const demoScreenshotPath = path.join(outputDir, 'demo.png');
@@ -90,6 +51,7 @@ export async function captureScreenshots(
 
   const browser = await puppeteer.launch(launchOptions);
 
+  // puppeteer.launchで生成される about:blank ページを閉じる
   const pages = await browser.pages();
   if (pages.length === 1 && pages[0].url() === 'about:blank') {
     await pages[0].close();
@@ -105,8 +67,8 @@ export async function captureScreenshots(
     ]);
 
     await Promise.all([
-      applyCookiesIfAvailable(demoPage),
-      applyCookiesIfAvailable(prodPage)
+      applyCookies(demoPage, workspaceRoot),
+      applyCookies(prodPage, workspaceRoot)
     ]);
 
     await Promise.all([
@@ -123,9 +85,8 @@ export async function captureScreenshots(
       takeScreenshot(prodPage, prodScreenshotPath)
     ]);
 
-    // ✅ 手動モード時のみCookie保存（ログインした場合）
     if (isManualShot) {
-      await saveCookiesIfNeeded(demoPage);
+      await saveCookies(demoPage, workspaceRoot);
     }
 
     return { demoScreenshot: demoScreenshotPath, prodScreenshot: prodScreenshotPath };

@@ -31,21 +31,27 @@
 ```plaintext
 visual-diff-locator/
 ├── src/
-│   ├── extension.ts       # VSCode拡張のエントリーポイント
-│   ├── util/
-│   │   ├── capture.ts     # Puppeteer によるスクリーンショット取得と Cookie 処理
-│   │   ├── diff.ts        # 画像の差分検出処理
-│   ├── webview/
-│   │   ├── pixelDiff.ts   # ピクセル差分ビュー
-│   │   ├── overlay.ts     # オーバーレイ表示ビュー
-├── package.json           # 拡張機能の定義
-├── tsconfig.json
-├── README.md
+│   ├── core/
+│   │   ├── captureService.ts  # Puppeteer によるスクリーンショット取得処理
+│   │   ├── diffService.ts     # 画像の差分検出処理
+│   │   ├── cookieService.ts   # Cookie 読み込み・書き出し処理
+│   ├── ui/                    # UI層（VS Code API を使用）
+│   │   ├── extension.ts       # VSCode拡張のエントリーポイント
+│   │   └── webview/
+│   │       ├── overlay.ts     # オーバーレイ表示ビュー
+│   │       └── pixelDiff.ts   # ピクセル差分ビュー
+│   ├── config/
+│   │   ├── devices.ts
+│   │   └── types.ts
+├── screenshots/               # 自動生成された比較画像の保存先
 ├── .vscode/
-│   ├── visual-diff/       # Cookieファイル格納用（自動生成されます）
+│   ├── visual-diff/           # Cookieファイル格納用
 │   ├── launch.json
-│   ├── tasks.json
-├── screenshots/           # スクリーンショット出力先
+│   └── tasks.json
+├── package.json　　　　　　　　　# 拡張機能の定義
+├── tsconfig.json
+└── README.md
+
 ```
 
 ---
