@@ -28,7 +28,8 @@ function loadPng(filePath: string): Promise<PNG> {
  */
 function savePng(png: PNG, filePath: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    png.pack()
+    png
+      .pack()
       .pipe(fs.createWriteStream(filePath))
       .on('finish', resolve)
       .on('error', (error) => {
@@ -44,7 +45,11 @@ function savePng(png: PNG, filePath: string): Promise<void> {
  * @param unifyWidth 横幅も統一するか（デフォルト: true）
  * @returns 統一後の画像
  */
-function alignImages(img1: PNG, img2: PNG, unifyWidth = true): { img1: PNG; img2: PNG } {
+function alignImages(
+  img1: PNG,
+  img2: PNG,
+  unifyWidth = true
+): { img1: PNG; img2: PNG } {
   const width = unifyWidth ? Math.max(img1.width, img2.width) : img1.width;
   const height = Math.max(img1.height, img2.height);
 
@@ -75,10 +80,17 @@ export async function compareScreenshots(
 ): Promise<string> {
   try {
     const { default: pixelmatch } = await import('pixelmatch');
-    const [img1, img2] = await Promise.all([loadPng(demoPath), loadPng(prodPath)]);
+    const [img1, img2] = await Promise.all([
+      loadPng(demoPath),
+      loadPng(prodPath)
+    ]);
 
     // 画像サイズを統一
-    const { img1: alignedImg1, img2: alignedImg2 } = alignImages(img1, img2, unifyWidth);
+    const { img1: alignedImg1, img2: alignedImg2 } = alignImages(
+      img1,
+      img2,
+      unifyWidth
+    );
     const { width, height } = alignedImg1;
 
     // 差分画像を生成
@@ -93,6 +105,8 @@ export async function compareScreenshots(
     await savePng(diff, outputPath);
     return outputPath;
   } catch (error) {
-    throw new Error(`画像比較エラー:\nデモ: ${demoPath}\n本番: ${prodPath}\n出力: ${outputPath}\n${error}`);
+    throw new Error(
+      `画像比較エラー:\nデモ: ${demoPath}\n本番: ${prodPath}\n出力: ${outputPath}\n${error}`
+    );
   }
 }

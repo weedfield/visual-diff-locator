@@ -29,7 +29,10 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider('visualDiffSidebar', panelProvider)
+    vscode.window.registerWebviewViewProvider(
+      'visualDiffSidebar',
+      panelProvider
+    )
   );
 
   // CLIコマンド登録
@@ -58,7 +61,10 @@ export function deactivate() {}
 /**
  * 比較処理を実行する
  */
-async function startComparison(context: vscode.ExtensionContext, input: InputParams) {
+async function startComparison(
+  context: vscode.ExtensionContext,
+  input: InputParams
+) {
   const workspaceRoot = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
   if (!workspaceRoot) {
     vscode.window.showErrorMessage('ワークスペースが開かれていません。');
@@ -72,7 +78,8 @@ async function startComparison(context: vscode.ExtensionContext, input: InputPar
   const waitForUser = input.isManualShot
     ? async () => {
         const response = await vscode.window.showInformationMessage(
-          'スクリーンショットを撮影する準備ができたら「OK」を押してください。', 'OK'
+          'スクリーンショットを撮影する準備ができたら「OK」を押してください。',
+          'OK'
         );
         if (!response) {
           throw new Error('スクリーンショットの撮影がキャンセルされました。');
@@ -80,7 +87,9 @@ async function startComparison(context: vscode.ExtensionContext, input: InputPar
       }
     : undefined;
 
-  vscode.window.showInformationMessage(`スクリーンショットを取得中... (デバイス: ${input.selectedDevice.name})`);
+  vscode.window.showInformationMessage(
+    `スクリーンショットを取得中... (デバイス: ${input.selectedDevice.name})`
+  );
 
   const { demoScreenshot, prodScreenshot } = await captureScreenshots(
     input.demoUrl,

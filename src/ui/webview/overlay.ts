@@ -1,6 +1,10 @@
 import * as vscode from 'vscode';
 
-export function showOverlayView(context: vscode.ExtensionContext, baseImagePath: string, overlayImagePath: string) {
+export function showOverlayView(
+  context: vscode.ExtensionContext,
+  baseImagePath: string,
+  overlayImagePath: string
+) {
   const panel = vscode.window.createWebviewPanel(
     'imageOverlay',
     'Overlay View',
@@ -8,8 +12,12 @@ export function showOverlayView(context: vscode.ExtensionContext, baseImagePath:
     { enableScripts: true }
   );
 
-  const baseImageUri = panel.webview.asWebviewUri(vscode.Uri.file(baseImagePath));
-  const overlayImageUri = panel.webview.asWebviewUri(vscode.Uri.file(overlayImagePath));
+  const baseImageUri = panel.webview.asWebviewUri(
+    vscode.Uri.file(baseImagePath)
+  );
+  const overlayImageUri = panel.webview.asWebviewUri(
+    vscode.Uri.file(overlayImagePath)
+  );
 
   panel.webview.html = getOverlayHtml(baseImageUri, overlayImageUri);
 }

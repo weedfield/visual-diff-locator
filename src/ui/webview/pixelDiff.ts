@@ -1,6 +1,9 @@
 import * as vscode from 'vscode';
 
-export function showPixelDiffView(context: vscode.ExtensionContext, diffPath: string) {
+export function showPixelDiffView(
+  context: vscode.ExtensionContext,
+  diffPath: string
+) {
   const panel = vscode.window.createWebviewPanel(
     'visualDiff',
     'Pixel Diff View',

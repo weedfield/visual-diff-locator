@@ -1,21 +1,19 @@
-import * as vscode from "vscode";
-import { DeviceCategory } from "../../config/types";
-import { CUSTOM_DEVICES } from "../../config/devices";
+import * as vscode from 'vscode';
+import { DeviceCategory } from '../../config/types';
+import { CUSTOM_DEVICES } from '../../config/devices';
 
 export class DiffPanelProvider implements vscode.WebviewViewProvider {
-  constructor(
-    private readonly onRunCommand: (message: any) => void
-  ) {}
+  constructor(private readonly onRunCommand: (message: any) => void) {}
 
   public resolveWebviewView(webviewView: vscode.WebviewView): void {
     webviewView.webview.options = {
-      enableScripts: true,
+      enableScripts: true
     };
 
     webviewView.webview.html = this.getHtml();
 
     webviewView.webview.onDidReceiveMessage((message) => {
-      if (message.command === "submit") {
+      if (message.command === 'submit') {
         this.onRunCommand(message);
       }
     });
@@ -25,10 +23,10 @@ export class DiffPanelProvider implements vscode.WebviewViewProvider {
     const categories: DeviceCategory[] = ['PC', 'Mobile'];
     const deviceOptions = (category: DeviceCategory) => {
       return Object.keys(CUSTOM_DEVICES[category])
-        .map(name => `<option value="${name}">${name}</option>`)
+        .map((name) => `<option value="${name}">${name}</option>`)
         .join('\n');
     };
-    
+
     return `
       <!DOCTYPE html>
       <html lang="ja">
@@ -58,7 +56,7 @@ export class DiffPanelProvider implements vscode.WebviewViewProvider {
           </select>
 
           <select id="category">
-            ${categories.map(cat => `<option value="${cat}">${cat}</option>`).join('')}
+            ${categories.map((cat) => `<option value="${cat}">${cat}</option>`).join('')}
           </select>
 
           <select id="deviceName" id="deviceSelect">

@@ -89,7 +89,10 @@ export async function captureScreenshots(
       await saveCookies(demoPage, workspaceRoot);
     }
 
-    return { demoScreenshot: demoScreenshotPath, prodScreenshot: prodScreenshotPath };
+    return {
+      demoScreenshot: demoScreenshotPath,
+      prodScreenshot: prodScreenshotPath
+    };
   } finally {
     await browser.close();
   }

@@ -89,4 +89,3 @@ npm run watch
 - URL やデバイスを選択し、比較を開始
 
 結果は PixelDiff View と Overlay View に表示されます。
-

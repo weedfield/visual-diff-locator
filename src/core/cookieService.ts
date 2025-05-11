@@ -15,7 +15,10 @@ function getCookieFilePath(workspaceRoot: string): string {
  * @param page 対象の Puppeteer ページ
  * @param workspaceRoot ワークスペースルートパス
  */
-export async function applyCookies(page: Page, workspaceRoot: string): Promise<void> {
+export async function applyCookies(
+  page: Page,
+  workspaceRoot: string
+): Promise<void> {
   const cookiePath = getCookieFilePath(workspaceRoot);
   if (!fs.existsSync(cookiePath)) return;
 
@@ -33,7 +36,10 @@ export async function applyCookies(page: Page, workspaceRoot: string): Promise<v
  * @param page 対象の Puppeteer ページ
  * @param workspaceRoot ワークスペースルートパス
  */
-export async function saveCookies(page: Page, workspaceRoot: string): Promise<void> {
+export async function saveCookies(
+  page: Page,
+  workspaceRoot: string
+): Promise<void> {
   const cookieDir = path.join(workspaceRoot, '.vscode', 'visual-diff');
   const cookiePath = getCookieFilePath(workspaceRoot);
 

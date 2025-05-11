@@ -2,8 +2,11 @@ import { InputParams } from './types';
 import { CUSTOM_DEVICES } from '../../config/devices';
 import { DeviceCategory } from '../../config/types';
 
-export async function getInputFromGui(message: any): Promise<InputParams | null> {
-  const { command, demoUrl, prodUrl, mode, deviceCategory, deviceName } = message;
+export async function getInputFromGui(
+  message: any
+): Promise<InputParams | null> {
+  const { command, demoUrl, prodUrl, mode, deviceCategory, deviceName } =
+    message;
 
   if (
     typeof demoUrl === 'string' &&
