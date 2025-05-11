@@ -15,9 +15,27 @@
     "commands": [
       {
         "command": "visual-diff-locator.start",
-        "title": "visual diff locate"
+        "title": "Visual Diff Locate"
       }
-    ]
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "visualDiff",
+          "title": "Visual Diff",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "visualDiff": [
+        {
+          "id": "visualDiffSidebar",
+          "name": "Visual Diff Panel",
+          "type": "webview"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
