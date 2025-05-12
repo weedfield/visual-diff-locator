@@ -1,4 +1,9 @@
 {
+  "publisher": "weedfield",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dummy"
+  },
   "name": "visual-diff-locator",
   "displayName": "visual-diff-locator",
   "description": "",
