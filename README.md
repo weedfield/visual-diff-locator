@@ -1,28 +1,41 @@
 # Visual Diff Locator
 
-デモ環境と本番環境の Web ページのスクリーンショットを取得し、視覚的な差分を検出・表示するツールです。
+デモ環境と本番環境など、2つの Web ページのスクリーンショットを取得し、視覚的な差分を検出・表示する VS Code 拡張機能です。
 
 ## 機能概要
 
-- **スクリーンショットの取得**：Puppeteer を使用して、デモ環境と本番環境のページを同一デバイスエミュレーションでキャプチャ
-- **画像の比較**：PixelMatch によるピクセル差分検出と、オーバーレイ比較の2種類の表示
+- **スクリーンショットの取得**：Puppeteer を使用して、同一デバイス環境で2つのページをキャプチャ
+- **画像の比較**：PixelMatch によるピクセル差分検出 + オーバーレイ比較表示
 - **結果の表示**：
   - **Pixel Diff View**：差分ピクセルを強調した静的ビュー
   - **Overlay View**：画像を重ねて可視化。以下の操作が可能：
-    - 透過度の調整（opacity）
+    - 透過度調整（opacity）
     - 色反転（invert）
-    - カーソルキーまたはドラッグで移動
+    - カーソルキー or ドラッグによる画像移動
     - スクロールロック切り替え
 
-## Cookie を利用したログイン状態の再現
+---
 
-`.vscode/visual-diff/cookies.json` を配置することで、ログイン済みセッションを再現可能です。
+## 認証対応
 
-- 形式は Puppeteer 互換の Cookie JSON
-- 取得には `EditThisCookie` などのブラウザ拡張を推奨
-- 手動モードでログインした際、Cookie は同パスに自動保存されます
+### Cookie を利用したログイン状態の再現
 
-> `.gitignore` には `.vscode/visual-diff/` を追加することを推奨します。
+`.vscode/visual-diff/cookies.json` に Cookie を保存・適用することで、ログイン済みセッションを再現可能です。
+
+- 保存：手動モード時、自動で保存されます
+- 形式：Puppeteer 互換の Cookie JSON
+- 取得：`EditThisCookie` などの Chrome 拡張で取得可能
+
+### Basic認証
+
+`.vscode/visual-diff/basic.json` にベーシック認証の情報を保存しておくと、認証ダイアログなしで自動ログインされます。
+
+```json
+{
+  "example.com": { "username": "user", "password": "pass" },
+  "dev.local": { "username": "dev", "password": "1234" }
+}
+```
 
 ---
 

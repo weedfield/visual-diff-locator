@@ -1,6 +1,7 @@
 import * as puppeteer from 'puppeteer';
 import * as path from 'path';
 import { applyCookies, saveCookies } from './cookieService';
+import { applyBasicAuthIfAvailable } from './basicAuthService';
 
 /**
  * 指定したページのスクリーンショットを撮影し、保存する
@@ -12,6 +13,28 @@ async function takeScreenshot(page: puppeteer.Page, outputPath: string) {
     await page.screenshot({ path: outputPath, fullPage: true });
   } catch (error) {
     throw new Error(`スクリーンショット取得失敗: ${outputPath}\n${error}`);
+  }
+}
+
+/**
+ * Basic認証が必要な場合に備えた goto のラッパー関数
+ */
+async function safeGotoWithFallback(
+  page: puppeteer.Page,
+  url: string
+): Promise<void> {
+  try {
+    await page.goto(url, { waitUntil: 'networkidle2' });
+  } catch (error: any) {
+    if (
+      error.message.includes('net::ERR_INVALID_AUTH_CREDENTIALS') ||
+      error.message.includes('ERR_ACCESS_DENIED')
+    ) {
+      console.warn(`[Visual Diff] 認証エラーを検出しました: ${url}`);
+      // 手動で認証できるように画面を保持
+    } else {
+      throw new Error(`ページ遷移エラー: ${url}\n${error}`);
+    }
   }
 }
 
@@ -72,8 +95,13 @@ export async function captureScreenshots(
     ]);
 
     await Promise.all([
-      demoPage.goto(demoUrl, { waitUntil: 'networkidle2' }),
-      prodPage.goto(prodUrl, { waitUntil: 'networkidle2' })
+      applyBasicAuthIfAvailable(demoPage, demoUrl, workspaceRoot),
+      applyBasicAuthIfAvailable(prodPage, prodUrl, workspaceRoot)
+    ]);
+
+    await Promise.all([
+      safeGotoWithFallback(demoPage, demoUrl),
+      safeGotoWithFallback(prodPage, prodUrl)
     ]);
 
     if (waitForUser) {
